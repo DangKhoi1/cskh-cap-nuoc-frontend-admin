@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T16:25:00+07:00",
+  "title": "Design System: CSKH Cấp Nước — Cổng Quản Trị",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Cerulean Utility",
+        "canonical": "#0369a1",
+        "tonalRamp": ["#082f49", "#0c4a6e", "#075985", "#0369a1", "#0284c7", "#38bdf8", "#bae6fd", "#e0f2fe"]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Cool Slate Canvas",
+        "canonical": "#f6f8fa",
+        "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#475569", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f6f8fa"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Pure Paper Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#111827", "#1e293b", "#334155", "#64748b", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#ffffff"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Teal Success",
+        "canonical": "#0d9488",
+        "tonalRamp": ["#134e4a", "#115e59", "#0f766e", "#0d9488", "#14b8a6", "#2dd4bf", "#99f6e4", "#ccfbf1"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Amber Warning",
+        "canonical": "#d97706",
+        "tonalRamp": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a", "#fef3c7"]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Crimson Danger",
+        "canonical": "#dc2626",
+        "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fecaca", "#fee2e2"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Tiêu đề trang trong header và tiêu đề biểu mẫu vai trò." },
+      "title": { "displayName": "Title", "purpose": "Tiêu đề nhóm thông tin, nhóm quyền và điều hướng." },
+      "body": { "displayName": "Body", "purpose": "Dữ liệu bảng, ô nhập liệu và mô tả." },
+      "label": { "displayName": "Label", "purpose": "Tiêu đề cột bảng, nhãn trường nhập và badge trạng thái." },
+      "mono": { "displayName": "Mono", "purpose": "Mã khách hàng, số đồng hồ và mã quyền kỹ thuật." }
+    },
+    "shadows": [
+      { "name": "surface-bar", "value": "0 4px 6px -1px rgba(15, 23, 42, 0.08)", "purpose": "Thanh lưu dính đáy và thông báo thành công nổi." },
+      { "name": "overlay-modal", "value": "0 10px 25px -5px rgba(15, 23, 42, 0.16)", "purpose": "Hộp thoại xác nhận và ngăn kéo trượt qua Portal." }
+    ],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Easing chuẩn cho fade-in, drawer-in, dropdown-in và panel-in." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Chuyển trạng thái hover, fade-in và dropdown." },
+      { "name": "duration-drawer", "value": "220ms", "purpose": "Trượt mở ngăn kéo SlideOver." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Nút hành động chính cho tạo mới và lưu thay đổi.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Lưu vai trò</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; border: none; border-radius: var(--radius-control, 8px); background: var(--primary, #0369a1); color: var(--primary-foreground, #ffffff); font-family: var(--font-sans); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: var(--primary-hover, #0284c7); } .ds-btn-primary:focus-visible { outline: 2px solid var(--ring, #0284c7); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Nút thao tác phụ như chỉnh sửa, hủy hoặc đặt lại bộ lọc.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Chỉnh sửa</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius-control, 8px); background: var(--surface, #ffffff); color: var(--foreground, #0f172a); font-family: var(--font-sans); font-size: 12px; font-weight: 500; cursor: pointer; transition: background-color 150ms ease; } .ds-btn-secondary:hover { background: var(--surface-hover, #f1f5f9); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--ring, #0284c7); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Ô tìm kiếm đặt trực tiếp trên thanh công cụ.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Tìm mã KH, họ tên, SĐT, số đồng hồ...\" />",
+      "css": ".ds-input { height: 36px; width: 100%; max-width: 384px; padding: 0 12px; border: 1px solid var(--border, #e2e8f0); border-radius: var(--radius-control, 8px); background: var(--surface, #ffffff); color: var(--foreground, #0f172a); font-family: var(--font-sans); font-size: 14px; } .ds-input::placeholder { color: var(--foreground-subtle, #475569); } .ds-input:focus { outline: none; border-color: var(--primary, #0369a1); }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "status-badge",
+      "description": "Nhãn trạng thái hoạt động, đã khóa hoặc vai trò mặc định.",
+      "html": "<span class=\"ds-badge-success\">Đang hoạt động</span>",
+      "css": ".ds-badge-success { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; background: var(--success-tint, #ccfbf1); color: var(--success-tint-ink, #115e59); font-family: var(--font-sans); font-size: 12px; font-weight: 500; white-space: nowrap; }"
+    },
+    {
+      "name": "Sidebar Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Mục điều hướng trong sidebar lọc theo permissionCodes.",
+      "html": "<a class=\"ds-nav-item ds-nav-active\" href=\"#\">Khách hàng</a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-control, 8px); font-family: var(--font-sans); font-size: 14px; font-weight: 500; text-decoration: none; color: var(--foreground-muted, #334155); transition: background-color 150ms ease, color 150ms ease; } .ds-nav-item:hover { background: var(--surface-hover, #f1f5f9); color: var(--foreground, #0f172a); } .ds-nav-active { background: var(--primary-tint, #e0f2fe); color: var(--primary-tint-ink, #075985); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Bảng điều phối quầy giao dịch",
+    "overview": "Giao diện cổng quản trị được thiết kế theo tinh thần vận hành trực diện: sạch, điềm tĩnh, ưu tiên khả năng quét nhanh dữ liệu khách hàng, nhân viên và cấu hình phân quyền thay vì trang trí. Mọi màn hình sử dụng nền sáng trung tính dịu mắt (#f6f8fa) làm lớp nền tổng thể để các bảng dữ liệu và biểu mẫu trắng (#ffffff) nổi bật nhờ đường viền mảnh (1px) thay vì đổ bóng nặng.",
+    "keyCharacteristics": [
+      "Bố cục thanh bên cố định (256px trên desktop) kết hợp vùng nội dung tối đa 1440px.",
+      "Thanh tìm kiếm và bộ lọc đặt trực tiếp trên nền trang, không đóng khung card thừa.",
+      "Nhãn màu chỉ dành cho trạng thái nghiệp vụ và nhãn mặc định; tên vai trò hiển thị dạng chữ thường dễ đọc.",
+      "Mọi thao tác tạo, sửa, xóa, khóa hoặc rời biểu mẫu chưa lưu đều có hộp thoại xác nhận (ConfirmDialog) và thông báo thành công toàn cục."
+    ],
+    "rules": [
+      { "name": "The Status-Only Color Rule", "body": "Màu sắc rực chỉ xuất hiện ở trạng thái hoạt động/khóa, cảnh báo và nút hành động chính; tuyệt đối không tô màu sặc sỡ cho tên vai trò hay các cột dữ liệu thông thường.", "section": "colors" },
+      { "name": "The Single-Line Code Rule", "body": "Mã khách hàng và số đồng hồ luôn sử dụng font monospace kèm whitespace-nowrap để không bị ngắt dòng giữa dấu gạch nối (-).", "section": "typography" },
+      { "name": "The Portal Overlay Rule", "body": "Mọi lớp phủ toàn màn hình (ConfirmDialog, SlideOver) phải render qua createPortal(..., document.body) để tránh bị CSS stacking context của hiệu ứng animate-fade-in hoặc sticky header đè lên.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do giữ kích thước chữ dữ liệu chính ở mức 14px và sử dụng tabular-nums cho cột số/ngày giờ.",
+      "Do render ConfirmDialog và SlideOver qua createPortal(..., document.body) để lớp phủ tối phủ kín toàn bộ viewport.",
+      "Do ẩn nút tạo/sửa/xóa và chặn nội dung trang dựa trên hasPermission(...) thay vì kiểm tra cứng tên vai trò.",
+      "Do tôn trọng prefers-reduced-motion bằng cách triệt tiêu thời lượng animation khi người dùng bật giảm chuyển động."
+    ],
+    "donts": [
+      "Don't đặt thanh tìm kiếm hoặc bộ lọc bên trong một card trắng riêng phía trên bảng dữ liệu.",
+      "Don't gắn nhãn màu cho tên vai trò trong bảng nhân viên hoặc thêm biểu đồ/thẻ thống kê trang trí khi màn hình chưa có dữ liệu tổng hợp thực.",
+      "Don't cho phép mã đồng hồ hoặc nút bấm hành động xuống dòng giữa chừng (whitespace-nowrap).",
+      "Don't viết cứng phân quyền theo tên vai trò (ADMIN, CSKH, SUPPORT) trong giao diện điều hướng hoặc kiểm tra nút."
+    ]
+  }
+}
