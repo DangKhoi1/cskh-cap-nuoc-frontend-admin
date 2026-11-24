@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { MOCK_CUSTOMERS } from "@/services/mock-data";
-import { useAdminStore } from "@/services/AdminStoreContext";
+import { useAlertStore } from "@/stores/alert.store";
+import { useAuthStore } from "@/stores/auth.store";
 import type { CustomerLinkItem } from "@/types";
 import { formatCurrencyVND, formatDateTime } from "@/lib/format";
 import { SlideOver } from "@/components/ui/SlideOver";
@@ -55,7 +56,8 @@ const V2_MOCK_DIRECTORY: Array<{
 
 function CustomersContent() {
   const searchParams = useSearchParams();
-  const { showSuccessAlert, hasPermission } = useAdminStore();
+  const showSuccessAlert = useAlertStore((s) => s.showSuccessAlert);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const canCreate = hasPermission("customers.create");
   const canUpdate = hasPermission("customers.update");
   const canDelete = hasPermission("customers.delete");

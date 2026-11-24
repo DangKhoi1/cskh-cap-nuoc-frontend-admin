@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAdminStore } from "@/services/AdminStoreContext";
 import {
   Check,
   Droplets,
@@ -12,10 +11,12 @@ import {
   Lock,
   Mail,
 } from "lucide-react";
+import { ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth.store";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const { staff, setCurrentUserId } = useAdminStore();
+  const login = useAuthStore((s) => s.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,14 +28,7 @@ export default function AdminLoginPage() {
     password?: string;
   }>({});
 
-  const fillDemoAccount = () => {
-    setEmail("admin@capnuoc.vn");
-    setPassword("123456");
-    setFieldErrors({});
-    setFormError("");
-  };
-
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const errors: { email?: string; password?: string } = {};
     const cleanEmail = email.trim();
@@ -59,16 +53,18 @@ export default function AdminLoginPage() {
 
     setIsSubmitting(true);
     setFormError("");
-    const matchedUser = staff.find(
-      (u) => u.email.toLowerCase() === cleanEmail.toLowerCase()
-    );
-    if (matchedUser) {
-      setCurrentUserId(matchedUser.id);
-    }
-    window.setTimeout(() => {
+    try {
+      await login(cleanEmail, password);
+      router.replace("/");
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : "Đăng nhập thất bại, vui lòng thử lại.";
+      setFormError(message);
+    } finally {
       setIsSubmitting(false);
-      router.push("/");
-    }, 350);
+    }
   };
 
   return (
@@ -116,10 +112,11 @@ export default function AdminLoginPage() {
                     }
                   }}
                   placeholder="ten.nhanvien@capnuoc.vn"
-                  className={`h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-foreground-subtle transition-colors duration-150 focus:outline-none ${fieldErrors.email
-                    ? "border-danger focus:border-danger"
-                    : "border-border focus:border-primary"
-                    }`}
+                  className={`h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-foreground-subtle transition-colors duration-150 focus:outline-none ${
+                    fieldErrors.email
+                      ? "border-danger focus:border-danger"
+                      : "border-border focus:border-primary"
+                  }`}
                 />
               </div>
               {fieldErrors.email ? (
@@ -151,10 +148,11 @@ export default function AdminLoginPage() {
                     }
                   }}
                   placeholder="Nhập mật khẩu"
-                  className={`h-10 w-full rounded-lg border bg-background pl-9 pr-10 text-sm text-foreground placeholder:text-foreground-subtle transition-colors duration-150 focus:outline-none ${fieldErrors.password
-                    ? "border-danger focus:border-danger"
-                    : "border-border focus:border-primary"
-                    }`}
+                  className={`h-10 w-full rounded-lg border bg-background pl-9 pr-10 text-sm text-foreground placeholder:text-foreground-subtle transition-colors duration-150 focus:outline-none ${
+                    fieldErrors.password
+                      ? "border-danger focus:border-danger"
+                      : "border-border focus:border-primary"
+                  }`}
                 />
                 <button
                   type="button"
@@ -191,14 +189,6 @@ export default function AdminLoginPage() {
                   Ghi nhớ phiên đăng nhập
                 </span>
               </label>
-
-              <button
-                type="button"
-                onClick={fillDemoAccount}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Điền tài khoản mẫu
-              </button>
             </div>
 
             <button
@@ -216,13 +206,6 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
-
-          <div className="mt-6 rounded-lg border border-border bg-surface-subtle px-3.5 py-2.5 text-xs text-foreground-muted">
-            <p className="font-medium text-foreground">Tài khoản quản trị (Demo)</p>
-            <p className="mt-0.5 font-mono text-[11px]">
-              admin@capnuoc.vn · 123456
-            </p>
-          </div>
         </div>
       </main>
 
@@ -232,4 +215,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-

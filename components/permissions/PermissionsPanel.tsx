@@ -1,14 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, KeyRound, Search } from "lucide-react";
-import { useAdminStore } from "@/services/AdminStoreContext";
+import { ApiError } from "@/lib/api-client";
+import { useAlertStore } from "@/stores/alert.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { useRbacStore } from "@/stores/rbac.store";
 
 export function PermissionsPanel() {
-  const { permissions } = useAdminStore();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const permissions = useRbacStore((s) => s.permissions);
+  const loadingPermissions = useRbacStore((s) => s.loadingPermissions);
+  const fetchPermissions = useRbacStore((s) => s.fetchPermissions);
+  const showErrorAlert = useAlertStore((s) => s.showErrorAlert);
+
   const [query, setQuery] = useState("");
   const [moduleFilter, setModuleFilter] = useState("Tất cả");
+
+  useEffect(() => {
+    if (!currentUser) return;
+    fetchPermissions().catch((error) => {
+      if (error instanceof ApiError && error.status !== 401 && error.status !== 403) {
+        showErrorAlert(error.message);
+      }
+    });
+  }, [currentUser, fetchPermissions, showErrorAlert]);
 
   const modules = useMemo(
     () => [
@@ -79,7 +96,11 @@ export function PermissionsPanel() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        {filtered.length === 0 ? (
+        {loadingPermissions && permissions.length === 0 ? (
+          <div className="px-6 py-14 text-center text-sm text-foreground-muted">
+            Đang tải danh mục quyền...
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
             <KeyRound className="h-8 w-8 text-foreground-subtle" />
             <p className="mt-3 text-sm font-medium text-foreground">
@@ -113,7 +134,14 @@ export function PermissionsPanel() {
                     className="transition-colors duration-150 hover:bg-surface-hover"
                   >
                     <td className="px-5 py-3 font-medium text-foreground">
-                      {perm.name}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{perm.name}</span>
+                        {perm.adminOnly ? (
+                          <span className="rounded-md bg-warning-tint px-2 py-0.5 text-[11px] font-medium text-warning-tint-ink">
+                            Chỉ ADMIN hệ thống
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground-muted">
                       {perm.module}

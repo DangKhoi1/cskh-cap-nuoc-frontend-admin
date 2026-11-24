@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Copy,
@@ -11,7 +11,10 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { useAdminStore } from "@/services/AdminStoreContext";
+import { ApiError } from "@/lib/api-client";
+import { useAlertStore } from "@/stores/alert.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { useRbacStore } from "@/stores/rbac.store";
 import type { PermissionItem, RoleDefinition } from "@/types";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ActionMenu } from "@/components/ui/ActionMenu";
@@ -38,19 +41,21 @@ function generateRoleCode(name: string): string {
 }
 
 export function RolesPanel() {
-  const {
-    roles,
-    setRoles,
-    staff,
-    setStaff,
-    permissions,
-    showSuccessAlert,
-    hasPermission,
-  } = useAdminStore();
-  const canCreate = hasPermission("roles.create");
-  const canUpdate = hasPermission("roles.update");
-  const canDelete = hasPermission("roles.delete");
-  const hasRowActions = canUpdate || canCreate || canDelete;
+  const roles = useRbacStore((s) => s.roles);
+  const permissions = useRbacStore((s) => s.permissions);
+  const loadingRoles = useRbacStore((s) => s.loadingRoles);
+  const isSubmitting = useRbacStore((s) => s.isSubmitting);
+  const fetchRoles = useRbacStore((s) => s.fetchRoles);
+  const fetchPermissions = useRbacStore((s) => s.fetchPermissions);
+  const createRole = useRbacStore((s) => s.createRole);
+  const updateRole = useRbacStore((s) => s.updateRole);
+  const deleteRole = useRbacStore((s) => s.deleteRole);
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const isSystemAdmin = useAuthStore((s) => s.isSystemAdmin());
+  const showSuccessAlert = useAlertStore((s) => s.showSuccessAlert);
+  const showErrorAlert = useAlertStore((s) => s.showErrorAlert);
+
+  const canManageRoles = isSystemAdmin;
   const [searchQuery, setSearchQuery] = useState("");
 
   const [formMode, setFormMode] = useState<null | "create" | string>(null);
@@ -66,18 +71,21 @@ export function RolesPanel() {
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
+  useEffect(() => {
+    if (!currentUser) return;
+    void Promise.all([fetchRoles(), fetchPermissions()]).catch((error) => {
+      if (error instanceof ApiError && error.status !== 401 && error.status !== 403) {
+        showErrorAlert(error.message);
+      }
+    });
+  }, [currentUser, fetchRoles, fetchPermissions, showErrorAlert]);
+
   const editingRole = useMemo(() => {
     if (!formMode || formMode === "create") return null;
     return roles.find((r) => r.id === formMode) ?? null;
   }, [formMode, roles]);
 
-  const staffCountByRole = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const u of staff) {
-      map.set(u.role, (map.get(u.role) ?? 0) + 1);
-    }
-    return map;
-  }, [staff]);
+  const isEditingAdminRole = editingRole?.code === "ADMIN";
 
   const filteredRoles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -113,9 +121,10 @@ export function RolesPanel() {
     return (
       roleName.trim() !== editingRole.name ||
       roleDesc.trim() !== editingRole.description ||
-      !areCodeSetsEqual(draftCodes, editingRole.permissionCodes)
+      (!isEditingAdminRole &&
+        !areCodeSetsEqual(draftCodes, editingRole.permissionCodes))
     );
-  }, [formMode, editingRole, roleName, roleDesc, draftCodes]);
+  }, [formMode, editingRole, isEditingAdminRole, roleName, roleDesc, draftCodes]);
 
   const openCreateForm = () => {
     setFormMode("create");
@@ -133,7 +142,7 @@ export function RolesPanel() {
     setNameError(undefined);
   };
 
-  const confirmDuplicateRole = () => {
+  const confirmDuplicateRole = async () => {
     if (!roleToDuplicate) return;
     const baseName = `${roleToDuplicate.name} (Bản sao)`;
     let candidateCode = generateRoleCode(baseName) || `ROLE_${Date.now()}`;
@@ -142,17 +151,26 @@ export function RolesPanel() {
       candidateCode = `${generateRoleCode(roleToDuplicate.name)}_${suffix}`;
       suffix += 1;
     }
-    const duplicated: RoleDefinition = {
-      id: `role-${Date.now()}`,
-      code: candidateCode,
-      name: baseName,
-      description: roleToDuplicate.description,
-      isSystem: false,
-      permissionCodes: [...roleToDuplicate.permissionCodes],
-    };
-    setRoles((prev) => [...prev, duplicated]);
-    showSuccessAlert(`Đã nhân bản vai trò "${roleToDuplicate.name}".`);
-    setRoleToDuplicate(null);
+    const adminOnlySet = new Set(
+      permissions.filter((p) => p.adminOnly).map((p) => p.code)
+    );
+    const copyableCodes = roleToDuplicate.permissionCodes.filter(
+      (code) => !adminOnlySet.has(code)
+    );
+
+    try {
+      await createRole({
+        code: candidateCode,
+        name: baseName,
+        description: roleToDuplicate.description,
+        permissionCodes: copyableCodes,
+      });
+      showSuccessAlert(`Đã nhân bản vai trò "${roleToDuplicate.name}".`);
+    } catch (error) {
+      if (error instanceof ApiError) showErrorAlert(error.message);
+    } finally {
+      setRoleToDuplicate(null);
+    }
   };
 
   const requestLeaveForm = () => {
@@ -184,65 +202,56 @@ export function RolesPanel() {
     setSaveConfirmOpen(true);
   };
 
-  const confirmSaveRole = () => {
+  const confirmSaveRole = async () => {
     const cleanName = roleName.trim();
-    if (editingRole) {
-      setRoles((prev) =>
-        prev.map((r) =>
-          r.id === editingRole.id
-            ? {
-                ...r,
-                name: cleanName,
-                description: roleDesc.trim(),
-                permissionCodes: draftCodes,
-              }
-            : r
-        )
-      );
-      showSuccessAlert(
-        `Đã lưu vai trò "${cleanName}" với ${draftCodes.length} quyền.`
-      );
-    } else {
-      let generatedCode = generateRoleCode(cleanName) || `ROLE_${Date.now()}`;
-      let suffix = 2;
-      while (roles.some((r) => r.code === generatedCode)) {
-        generatedCode = `${generateRoleCode(cleanName)}_${suffix}`;
-        suffix += 1;
+    try {
+      if (editingRole) {
+        await updateRole(editingRole.id, {
+          name: cleanName,
+          description: roleDesc.trim(),
+          ...(isEditingAdminRole ? {} : { permissionCodes: draftCodes }),
+        });
+        showSuccessAlert(`Đã lưu vai trò "${cleanName}".`);
+      } else {
+        let generatedCode = generateRoleCode(cleanName) || `ROLE_${Date.now()}`;
+        let suffix = 2;
+        while (roles.some((r) => r.code === generatedCode)) {
+          generatedCode = `${generateRoleCode(cleanName)}_${suffix}`;
+          suffix += 1;
+        }
+        await createRole({
+          code: generatedCode,
+          name: cleanName,
+          description: roleDesc.trim() || "Vai trò tùy chỉnh",
+          permissionCodes: draftCodes,
+        });
+        showSuccessAlert(
+          `Đã tạo vai trò "${cleanName}" với ${draftCodes.length} quyền.`
+        );
       }
-      const created: RoleDefinition = {
-        id: `role-${Date.now()}`,
-        code: generatedCode,
-        name: cleanName,
-        description: roleDesc.trim() || "Vai trò tùy chỉnh",
-        isSystem: false,
-        permissionCodes: draftCodes,
-      };
-      setRoles((prev) => [...prev, created]);
-      showSuccessAlert(
-        `Đã tạo vai trò "${cleanName}" với ${draftCodes.length} quyền.`
+      setSaveConfirmOpen(false);
+      setFormMode(null);
+    } catch (error) {
+      setSaveConfirmOpen(false);
+      showErrorAlert(
+        error instanceof ApiError
+          ? error.message
+          : "Không thể lưu vai trò, vui lòng thử lại."
       );
     }
-    setSaveConfirmOpen(false);
-    setFormMode(null);
   };
 
-  const confirmDeleteRole = () => {
+  const confirmDeleteRole = async () => {
     if (!roleToDelete || roleToDelete.isSystem) return;
-    const fallbackCode =
-      roles.find((r) => r.code === "CSKH")?.code ?? roles[0]?.code ?? "CSKH";
-    setStaff((prev) =>
-      prev.map((u) =>
-        u.role === roleToDelete.code ? { ...u, role: fallbackCode } : u
-      )
-    );
-    setRoles((prev) => prev.filter((r) => r.id !== roleToDelete.id));
-    showSuccessAlert(`Đã xóa vai trò "${roleToDelete.name}".`);
-    setRoleToDelete(null);
+    try {
+      await deleteRole(roleToDelete.id);
+      showSuccessAlert(`Đã xóa vai trò "${roleToDelete.name}".`);
+    } catch (error) {
+      if (error instanceof ApiError) showErrorAlert(error.message);
+    } finally {
+      setRoleToDelete(null);
+    }
   };
-
-  const assignedDeleteCount = roleToDelete
-    ? (staffCountByRole.get(roleToDelete.code) ?? 0)
-    : 0;
 
   if (formMode) {
     return (
@@ -333,6 +342,7 @@ export function RolesPanel() {
           <PermissionSelector
             groupedPermissions={groupedPermissions}
             selectedCodes={draftCodes}
+            lockedAll={isEditingAdminRole}
             onTogglePermission={(code) =>
               setDraftCodes((prev) =>
                 prev.includes(code)
@@ -366,7 +376,7 @@ export function RolesPanel() {
             </button>
             <button
               type="submit"
-              disabled={!isDirty && formMode !== "create"}
+              disabled={isSubmitting || (!isDirty && formMode !== "create")}
               className="inline-flex h-9 whitespace-nowrap items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Save className="h-3.5 w-3.5 shrink-0" />
@@ -392,7 +402,7 @@ export function RolesPanel() {
         <ConfirmDialog
           open={saveConfirmOpen}
           onClose={() => setSaveConfirmOpen(false)}
-          onConfirm={confirmSaveRole}
+          onConfirm={() => void confirmSaveRole()}
           title={
             editingRole ? "Xác nhận lưu vai trò" : "Xác nhận tạo vai trò mới"
           }
@@ -403,11 +413,16 @@ export function RolesPanel() {
               <strong className="font-semibold text-foreground">
                 {roleName.trim()}
               </strong>{" "}
-              với{" "}
-              <strong className="font-semibold text-foreground">
-                {draftCodes.length} quyền
-              </strong>{" "}
-              được cấp?
+              {!isEditingAdminRole ? (
+                <>
+                  với{" "}
+                  <strong className="font-semibold text-foreground">
+                    {draftCodes.length} quyền
+                  </strong>{" "}
+                  được cấp
+                </>
+              ) : null}
+              ?
             </>
           }
           confirmLabel="Lưu vai trò"
@@ -431,7 +446,7 @@ export function RolesPanel() {
           />
         </div>
 
-        {canCreate ? (
+        {canManageRoles ? (
           <button
             type="button"
             onClick={openCreateForm}
@@ -444,7 +459,11 @@ export function RolesPanel() {
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        {filteredRoles.length === 0 ? (
+        {loadingRoles && roles.length === 0 ? (
+          <div className="px-6 py-14 text-center text-sm text-foreground-muted">
+            Đang tải danh sách vai trò...
+          </div>
+        ) : filteredRoles.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
             <ShieldCheck className="h-8 w-8 text-foreground-subtle" />
             <p className="mt-3 text-sm font-medium text-foreground">
@@ -467,37 +486,32 @@ export function RolesPanel() {
                   <th className="px-4 py-3">Mô tả</th>
                   <th className="px-4 py-3 text-right">Nhân viên</th>
                   <th className="px-4 py-3 text-right">Quyền được cấp</th>
-                  {hasRowActions ? (
+                  {canManageRoles ? (
                     <th className="px-5 py-3 text-right">Thao tác</th>
                   ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredRoles.map((role) => {
-                  const assignedCount = staffCountByRole.get(role.code) ?? 0;
+                  const assignedCount = role.userCount ?? 0;
+                  const cannotDelete = role.isSystem || assignedCount > 0;
                   const secondaryActions = [
-                    ...(canCreate
-                      ? [
-                          {
-                            label: "Nhân bản vai trò",
-                            icon: <Copy className="h-3.5 w-3.5" />,
-                            onClick: () => setRoleToDuplicate(role),
-                          },
-                        ]
-                      : []),
-                    ...(canDelete
-                      ? [
-                          {
-                            label: role.isSystem
-                              ? "Vai trò mặc định (khóa xóa)"
-                              : "Xóa vai trò",
-                            icon: <Trash2 className="h-3.5 w-3.5" />,
-                            tone: "danger" as const,
-                            disabled: role.isSystem,
-                            onClick: () => setRoleToDelete(role),
-                          },
-                        ]
-                      : []),
+                    {
+                      label: "Nhân bản vai trò",
+                      icon: <Copy className="h-3.5 w-3.5" />,
+                      onClick: () => setRoleToDuplicate(role),
+                    },
+                    {
+                      label: role.isSystem
+                        ? "Vai trò mặc định (khóa xóa)"
+                        : assignedCount > 0
+                          ? `Đang có ${assignedCount} nhân viên (khóa xóa)`
+                          : "Xóa vai trò",
+                      icon: <Trash2 className="h-3.5 w-3.5" />,
+                      tone: "danger" as const,
+                      disabled: cannotDelete,
+                      onClick: () => setRoleToDelete(role),
+                    },
                   ];
                   return (
                     <tr
@@ -509,7 +523,9 @@ export function RolesPanel() {
                           <span className="font-medium text-foreground">
                             {role.name}
                           </span>
-                          {role.isSystem ? (
+                          {role.code === "ADMIN" ? (
+                            <StatusBadge label="Toàn quyền hệ thống" tone="info" />
+                          ) : role.isSystem ? (
                             <StatusBadge label="Mặc định" tone="neutral" />
                           ) : null}
                         </div>
@@ -523,26 +539,22 @@ export function RolesPanel() {
                       <td className="px-4 py-3 text-right tabular-nums text-foreground">
                         {role.permissionCodes.length} / {permissions.length}
                       </td>
-                      {hasRowActions ? (
+                      {canManageRoles ? (
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
-                            {canUpdate ? (
-                              <button
-                                type="button"
-                                onClick={() => openEditForm(role)}
-                                className="inline-flex h-8 whitespace-nowrap items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover"
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                                <span>Chỉnh sửa</span>
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => openEditForm(role)}
+                              className="inline-flex h-8 whitespace-nowrap items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span>Chỉnh sửa</span>
+                            </button>
 
-                            {secondaryActions.length > 0 ? (
-                              <ActionMenu
-                                ariaLabel={`Thao tác phụ cho vai trò ${role.name}`}
-                                items={secondaryActions}
-                              />
-                            ) : null}
+                            <ActionMenu
+                              ariaLabel={`Thao tác phụ cho vai trò ${role.name}`}
+                              items={secondaryActions}
+                            />
                           </div>
                         </td>
                       ) : null}
@@ -558,7 +570,7 @@ export function RolesPanel() {
       <ConfirmDialog
         open={Boolean(roleToDelete)}
         onClose={() => setRoleToDelete(null)}
-        onConfirm={confirmDeleteRole}
+        onConfirm={() => void confirmDeleteRole()}
         title="Xác nhận xóa vai trò"
         description={
           roleToDelete ? (
@@ -571,15 +583,6 @@ export function RolesPanel() {
             </>
           ) : null
         }
-        warning={
-          assignedDeleteCount > 0 ? (
-            <>
-              Hiện có <strong>{assignedDeleteCount} nhân viên</strong> đang được
-              gán vai trò này. Nếu tiếp tục xóa, các nhân viên này sẽ được
-              chuyển về vai trò mặc định <strong>Chăm sóc khách hàng</strong>.
-            </>
-          ) : undefined
-        }
         confirmLabel="Xác nhận xóa"
         tone="danger"
       />
@@ -587,7 +590,7 @@ export function RolesPanel() {
       <ConfirmDialog
         open={Boolean(roleToDuplicate)}
         onClose={() => setRoleToDuplicate(null)}
-        onConfirm={confirmDuplicateRole}
+        onConfirm={() => void confirmDuplicateRole()}
         title="Xác nhận nhân bản vai trò"
         description={
           roleToDuplicate ? (
@@ -596,7 +599,7 @@ export function RolesPanel() {
               <strong className="font-semibold text-foreground">
                 {roleToDuplicate.name}
               </strong>{" "}
-              ({roleToDuplicate.permissionCodes.length} quyền)?
+              ?
             </>
           ) : null
         }

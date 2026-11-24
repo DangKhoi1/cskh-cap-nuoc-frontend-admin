@@ -20,6 +20,7 @@ export interface PermissionItem {
   name: string;
   module: string;
   description: string;
+  adminOnly: boolean;
 }
 
 export interface RoleDefinition {
@@ -29,6 +30,7 @@ export interface RoleDefinition {
   description: string;
   isSystem: boolean;
   permissionCodes: string[];
+  userCount?: number;
 }
 
 export interface StaffUser {
@@ -36,7 +38,20 @@ export interface StaffUser {
   fullName: string;
   email: string;
   role: StaffRole;
+  roleId: string;
+  roleName: string;
   department: string;
   active: boolean;
-  lastLoginAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface AdminAccessProfile extends StaffUser {
+  permissionCodes: string[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
 }

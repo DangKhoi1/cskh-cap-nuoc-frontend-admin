@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronRight, Minus, Search } from "lucide-react";
+import { Check, ChevronRight, Lock, Minus, Search } from "lucide-react";
 import type { PermissionItem } from "@/types";
 
 interface PermissionSelectorProps {
   groupedPermissions: Array<[string, PermissionItem[]]>;
   selectedCodes: string[];
+  lockedAll?: boolean;
   onTogglePermission: (code: string) => void;
   onToggleModule: (codes: string[], enable: boolean) => void;
 }
@@ -14,6 +15,7 @@ interface PermissionSelectorProps {
 export function PermissionSelector({
   groupedPermissions,
   selectedCodes,
+  lockedAll = false,
   onTogglePermission,
   onToggleModule,
 }: PermissionSelectorProps) {
@@ -49,6 +51,16 @@ export function PermissionSelector({
 
   return (
     <div className="space-y-3">
+      {lockedAll ? (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/25 bg-primary-tint/50 px-3.5 py-2.5 text-xs font-medium text-primary-tint-ink">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Vai trò ADMIN mặc định có toàn quyền hệ thống và không thể chỉnh sửa
+            danh sách quyền.
+          </span>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-subtle" />
@@ -101,15 +113,21 @@ export function PermissionSelector({
       ) : (
         <div className="space-y-2.5">
           {visibleGroups.map(({ moduleName, allItems, filteredItems }) => {
+            const selectableCodes = lockedAll
+              ? []
+              : allItems.filter((p) => !p.adminOnly).map((p) => p.code);
             const allCodes = allItems.map((p) => p.code);
             const selectedCount = allCodes.filter((c) =>
               selectedCodes.includes(c)
             ).length;
-            const isAllChecked =
-              allCodes.length > 0 && selectedCount === allCodes.length;
-            const isSomeChecked = selectedCount > 0 && !isAllChecked;
+            const isAllSelectableChecked =
+              selectableCodes.length > 0 &&
+              selectableCodes.every((c) => selectedCodes.includes(c));
+            const isSomeSelectableChecked =
+              selectableCodes.some((c) => selectedCodes.includes(c)) &&
+              !isAllSelectableChecked;
             const isOpen =
-              q || onlySelected ? true : (openModules[moduleName] ?? false);
+              q || onlySelected ? true : (openModules[moduleName] ?? true);
 
             return (
               <div
@@ -138,43 +156,50 @@ export function PermissionSelector({
                     </span>
                   </button>
 
-                  <label className="flex shrink-0 cursor-pointer items-center gap-2 select-none">
-                    <span className="text-xs font-medium text-foreground-muted">
-                      Chọn cả nhóm
-                    </span>
-                    <span className="relative flex h-4 w-4 items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={isAllChecked}
-                        ref={(el) => {
-                          if (el) el.indeterminate = isSomeChecked;
-                        }}
-                        onChange={() => onToggleModule(allCodes, !isAllChecked)}
-                        aria-label={`Chọn cả nhóm ${moduleName}`}
-                        className={`h-4 w-4 cursor-pointer appearance-none rounded border transition-colors duration-150 ${
-                          isAllChecked
-                            ? "border-primary bg-primary"
-                            : isSomeChecked
-                              ? "border-primary bg-primary/15"
-                              : "border-border-strong bg-surface"
-                        }`}
-                      />
-                      <Check
-                        className={`pointer-events-none absolute h-3 w-3 text-primary-foreground transition-all duration-150 ${
-                          isAllChecked
-                            ? "scale-100 opacity-100"
-                            : "scale-75 opacity-0"
-                        }`}
-                      />
-                      <Minus
-                        className={`pointer-events-none absolute h-3 w-3 text-primary transition-all duration-150 ${
-                          isSomeChecked
-                            ? "scale-100 opacity-100"
-                            : "scale-75 opacity-0"
-                        }`}
-                      />
-                    </span>
-                  </label>
+                  {!lockedAll && selectableCodes.length > 0 ? (
+                    <label className="flex shrink-0 cursor-pointer items-center gap-2 select-none">
+                      <span className="text-xs font-medium text-foreground-muted">
+                        Chọn cả nhóm
+                      </span>
+                      <span className="relative flex h-4 w-4 items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelectableChecked}
+                          ref={(el) => {
+                            if (el) el.indeterminate = isSomeSelectableChecked;
+                          }}
+                          onChange={() =>
+                            onToggleModule(
+                              selectableCodes,
+                              !isAllSelectableChecked
+                            )
+                          }
+                          aria-label={`Chọn cả nhóm ${moduleName}`}
+                          className={`h-4 w-4 cursor-pointer appearance-none rounded border transition-colors duration-150 ${
+                            isAllSelectableChecked
+                              ? "border-primary bg-primary"
+                              : isSomeSelectableChecked
+                                ? "border-primary bg-primary/15"
+                                : "border-border-strong bg-surface"
+                          }`}
+                        />
+                        <Check
+                          className={`pointer-events-none absolute h-3 w-3 text-primary-foreground transition-all duration-150 ${
+                            isAllSelectableChecked
+                              ? "scale-100 opacity-100"
+                              : "scale-75 opacity-0"
+                          }`}
+                        />
+                        <Minus
+                          className={`pointer-events-none absolute h-3 w-3 text-primary transition-all duration-150 ${
+                            isSomeSelectableChecked
+                              ? "scale-100 opacity-100"
+                              : "scale-75 opacity-0"
+                          }`}
+                        />
+                      </span>
+                    </label>
+                  ) : null}
                 </div>
 
                 <div
@@ -188,27 +213,40 @@ export function PermissionSelector({
                     <div className="grid grid-cols-1 gap-1 bg-surface p-2 sm:grid-cols-2">
                       {filteredItems.map((perm) => {
                         const isActive = selectedCodes.includes(perm.code);
+                        const isDisabled = lockedAll || perm.adminOnly;
                         return (
                           <label
                             key={perm.id}
-                            className={`flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2 transition-colors duration-150 ${
+                            className={`flex items-start gap-2.5 rounded-lg px-3 py-2 transition-colors duration-150 ${
+                              isDisabled
+                                ? "cursor-not-allowed opacity-70"
+                                : "cursor-pointer"
+                            } ${
                               isActive
                                 ? "bg-primary-tint/45"
-                                : "hover:bg-surface-hover"
+                                : isDisabled
+                                  ? ""
+                                  : "hover:bg-surface-hover"
                             }`}
                           >
                             <span className="relative mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
                               <input
                                 type="checkbox"
                                 checked={isActive}
+                                disabled={isDisabled}
                                 onChange={() => onTogglePermission(perm.code)}
-                                className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors duration-150 checked:border-primary checked:bg-primary"
+                                className="peer h-4 w-4 appearance-none rounded border border-border-strong bg-surface transition-colors duration-150 checked:border-primary checked:bg-primary disabled:cursor-not-allowed"
                               />
                               <Check className="pointer-events-none absolute h-3 w-3 scale-75 text-primary-foreground opacity-0 transition-all duration-150 peer-checked:scale-100 peer-checked:opacity-100" />
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium text-foreground">
-                                {perm.name}
+                              <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-foreground">
+                                <span>{perm.name}</span>
+                                {perm.adminOnly && !lockedAll ? (
+                                  <span className="rounded bg-warning-tint px-1.5 py-0.5 text-[10px] font-medium text-warning-tint-ink">
+                                    Chỉ dành cho quản trị viên hệ thống
+                                  </span>
+                                ) : null}
                               </span>
                               <span className="block text-xs text-foreground-subtle">
                                 {perm.description}

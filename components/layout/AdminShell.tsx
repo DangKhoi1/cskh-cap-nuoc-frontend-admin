@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  AlertCircle,
   CheckCircle2,
-  ChevronDown,
   Droplets,
   KeyRound,
+  Loader2,
   Lock,
   LogOut,
   Menu,
@@ -18,7 +19,9 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { AdminStoreProvider, useAdminStore } from "@/services/AdminStoreContext";
+import { useAlertStore } from "@/stores/alert.store";
+import { useAuthStore } from "@/stores/auth.store";
+import { useRbacStore } from "@/stores/rbac.store";
 
 interface NavItem {
   id: string;
@@ -29,7 +32,7 @@ interface NavItem {
   permission?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   {
     id: "customers",
     href: "/customers",
@@ -71,17 +74,18 @@ function getInitials(fullName: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-function AdminShellContent({ children }: { children: React.ReactNode }) {
+export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const {
-    staff,
-    roles,
-    currentUser,
-    setCurrentUserId,
-    hasPermission,
-    alerts,
-    dismissAlert,
-  } = useAdminStore();
+  const router = useRouter();
+  const currentUser = useAuthStore((s) => s.currentUser);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+  const initSession = useAuthStore((s) => s.initSession);
+  const logout = useAuthStore((s) => s.logout);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const resetRbac = useRbacStore((s) => s.resetRbac);
+  const alerts = useAlertStore((s) => s.alerts);
+  const dismissAlert = useAlertStore((s) => s.dismissAlert);
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -94,6 +98,18 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
       return () => window.cancelAnimationFrame(id);
     }
   }, []);
+
+  useEffect(() => {
+    if (pathname !== "/login" && !isInitialized) {
+      void initSession();
+    }
+  }, [pathname, isInitialized, initSession]);
+
+  useEffect(() => {
+    if (pathname !== "/login" && isInitialized && !currentUser) {
+      router.replace("/login");
+    }
+  }, [pathname, isInitialized, currentUser, router]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -112,18 +128,32 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem("cskh-admin-theme", next);
   };
 
-  const visibleNavItems = useMemo(
-    () => NAV_ITEMS.filter((item) => hasPermission(item.permission)),
-    [hasPermission]
-  );
+  const handleLogout = async () => {
+    await logout();
+    resetRbac();
+    router.replace("/login");
+  };
+
+  const visibleNavItems = useMemo(() => {
+    if (!currentUser || !currentUser.active) {
+      return [];
+    }
+    const permSet = new Set(currentUser.permissionCodes);
+    return NAV_ITEMS.filter(
+      (item) => !item.permission || permSet.has(item.permission)
+    );
+  }, [currentUser]);
 
   const matchedNav = NAV_ITEMS.find((item) =>
     item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
   );
 
-  const isAuthorized = matchedNav
-    ? hasPermission(matchedNav.permission)
-    : true;
+  const isAuthorized =
+    !isInitialized || !currentUser
+      ? true
+      : matchedNav
+        ? hasPermission(matchedNav.permission)
+        : true;
 
   const currentNav =
     visibleNavItems.find((item) =>
@@ -166,11 +196,10 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
                       <Link
                         href={item.href}
                         onClick={onNavigate}
-                        className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${
-                          active
-                            ? "bg-primary-tint text-primary-tint-ink"
-                            : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
-                        }`}
+                        className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ${active
+                          ? "bg-primary-tint text-primary-tint-ink"
+                          : "text-foreground-muted hover:bg-surface-hover hover:text-foreground"
+                          }`}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
                         <span className="truncate">{item.label}</span>
@@ -192,6 +221,14 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
+      {!isInitialized || !currentUser ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background text-foreground-muted">
+          <div className="flex items-center gap-2.5 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span>Đang kiểm tra phiên đăng nhập...</span>
+          </div>
+        </div>
+      ) : null}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -279,43 +316,30 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
               )}
             </button>
 
-            <div className="relative hidden items-center sm:flex">
-              <div className="pointer-events-none absolute left-2 flex h-6 w-6 items-center justify-center rounded-md bg-primary-tint text-[11px] font-semibold text-primary-tint-ink">
-                {getInitials(currentUser?.fullName ?? "MK")}
+            <div className="hidden items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 sm:flex">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary-tint text-[11px] font-semibold text-primary-tint-ink">
+                {getInitials(currentUser?.fullName ?? "NV")}
               </div>
-              <select
-                aria-label="Chuyển người dùng đăng nhập"
-                value={currentUser?.id ?? ""}
-                onChange={(e) => setCurrentUserId(e.target.value)}
-                className="h-9 appearance-none rounded-lg border border-border bg-surface pl-10 pr-8 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover focus:border-primary focus:outline-none"
-              >
-                {staff.map((user) => {
-                  const roleName =
-                    roles.find((r) => r.code === user.role)?.name ?? user.role;
-                  return (
-                    <option
-                      key={user.id}
-                      value={user.id}
-                      disabled={!user.active}
-                    >
-                      {user.fullName} ({roleName})
-                      {user.active ? "" : " - Đã khóa"}
-                    </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-subtle" />
+              <div className="leading-tight">
+                <p className="text-xs font-medium text-foreground">
+                  {currentUser?.fullName ?? "Đang tải..."}
+                </p>
+                <p className="text-[11px] text-foreground-subtle">
+                  {currentUser?.roleName || currentUser?.role || ""}
+                </p>
+              </div>
             </div>
 
-            <Link
-              href="/login"
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
               aria-label="Đăng xuất"
               title="Đăng xuất"
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 text-xs font-medium text-foreground-muted transition-colors duration-150 hover:bg-surface-hover hover:text-foreground"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               <span className="hidden md:inline">Đăng xuất</span>
-            </Link>
+            </button>
           </div>
         </header>
 
@@ -333,7 +357,7 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
               <p className="mt-1.5 max-w-md text-sm text-foreground-muted">
                 {!currentUser?.active
                   ? "Tài khoản hiện tại đang bị tạm khóa nên không có quyền truy cập các chức năng quản trị."
-                  : "Vai trò hiện tại không được cấp quyền xem mục này. Vui lòng chuyển sang trang được phép hoặc chọn tài khoản khác."}
+                  : "Vai trò hiện tại không được cấp quyền xem mục này."}
               </p>
               {visibleNavItems.length > 0 ? (
                 <Link
@@ -357,10 +381,17 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
             <div
               key={alert.id}
               role="status"
-              className="animate-panel-in pointer-events-auto flex items-center justify-between gap-3 rounded-xl border border-success/30 bg-surface px-4 py-3 shadow-md"
+              className={`animate-panel-in pointer-events-auto flex items-center justify-between gap-3 rounded-xl border bg-surface px-4 py-3 shadow-md ${alert.type === "error"
+                ? "border-danger/35"
+                : "border-success/30"
+                }`}
             >
               <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                {alert.type === "error" ? (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                )}
                 <p className="text-sm font-medium text-foreground">
                   {alert.message}
                 </p>
@@ -378,13 +409,5 @@ function AdminShellContent({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-export function AdminShell({ children }: { children: React.ReactNode }) {
-  return (
-    <AdminStoreProvider>
-      <AdminShellContent>{children}</AdminShellContent>
-    </AdminStoreProvider>
   );
 }
