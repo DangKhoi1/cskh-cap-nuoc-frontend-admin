@@ -23,7 +23,7 @@ export const authApi = {
   },
 
   logout() {
-    return apiRequest<{ EC: number; EM: string }>("/auth/logout", {
+    return apiRequest<{ EC: number; EM: string }>("/auth/staff/logout", {
       method: "POST",
       skipAuthHandlers: true,
     });

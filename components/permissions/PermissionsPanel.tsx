@@ -9,7 +9,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { useRbacStore } from "@/stores/rbac.store";
 
 export function PermissionsPanel() {
-  const currentUser = useAuthStore((s) => s.currentUser);
+  const currentUserId = useAuthStore((s) => s.currentUser?.id);
   const permissions = useRbacStore((s) => s.permissions);
   const loadingPermissions = useRbacStore((s) => s.loadingPermissions);
   const fetchPermissions = useRbacStore((s) => s.fetchPermissions);
@@ -19,13 +19,13 @@ export function PermissionsPanel() {
   const [moduleFilter, setModuleFilter] = useState("Tất cả");
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUserId) return;
     fetchPermissions().catch((error) => {
       if (error instanceof ApiError && error.status !== 401 && error.status !== 403) {
         showErrorAlert(error.message);
       }
     });
-  }, [currentUser, fetchPermissions, showErrorAlert]);
+  }, [currentUserId, fetchPermissions, showErrorAlert]);
 
   const modules = useMemo(
     () => [

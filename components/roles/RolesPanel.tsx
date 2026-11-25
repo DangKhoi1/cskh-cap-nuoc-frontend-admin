@@ -1,91 +1,67 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  Copy,
-  Pencil,
-  Plus,
-  Save,
-  Search,
-  ShieldCheck,
-  Trash2,
-} from "lucide-react";
+import { Copy, Pencil, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { ApiError } from "@/lib/api-client";
 import { useAlertStore } from "@/stores/alert.store";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRbacStore } from "@/stores/rbac.store";
 import type { PermissionItem, RoleDefinition } from "@/types";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { PermissionSelector } from "@/components/roles/PermissionSelector";
-
-function areCodeSetsEqual(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const setA = new Set(a);
-  if (setA.size !== b.length) return false;
-  return b.every((code) => setA.has(code));
-}
-
-function generateRoleCode(name: string): string {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { generateRoleCode, RoleFormView } from "@/components/roles/RoleFormView";
 
 export function RolesPanel() {
   const roles = useRbacStore((s) => s.roles);
   const permissions = useRbacStore((s) => s.permissions);
   const loadingRoles = useRbacStore((s) => s.loadingRoles);
-  const isSubmitting = useRbacStore((s) => s.isSubmitting);
   const fetchRoles = useRbacStore((s) => s.fetchRoles);
   const fetchPermissions = useRbacStore((s) => s.fetchPermissions);
   const createRole = useRbacStore((s) => s.createRole);
-  const updateRole = useRbacStore((s) => s.updateRole);
   const deleteRole = useRbacStore((s) => s.deleteRole);
-  const currentUser = useAuthStore((s) => s.currentUser);
+  const currentUserId = useAuthStore((s) => s.currentUser?.id);
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const isSystemAdmin = useAuthStore((s) => s.isSystemAdmin());
+  const canViewPermissions = hasPermission("permissions.view") || isSystemAdmin;
   const showSuccessAlert = useAlertStore((s) => s.showSuccessAlert);
   const showErrorAlert = useAlertStore((s) => s.showErrorAlert);
 
   const canManageRoles = isSystemAdmin;
   const [searchQuery, setSearchQuery] = useState("");
-
   const [formMode, setFormMode] = useState<null | "create" | string>(null);
-  const [roleName, setRoleName] = useState("");
-  const [roleDesc, setRoleDesc] = useState("");
-  const [draftCodes, setDraftCodes] = useState<string[]>([]);
-  const [nameError, setNameError] = useState<string | undefined>(undefined);
-
   const [roleToDelete, setRoleToDelete] = useState<RoleDefinition | null>(null);
   const [roleToDuplicate, setRoleToDuplicate] = useState<RoleDefinition | null>(
     null
   );
-  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
-  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (!currentUser) return;
-    void Promise.all([fetchRoles(), fetchPermissions()]).catch((error) => {
-      if (error instanceof ApiError && error.status !== 401 && error.status !== 403) {
+    if (!currentUserId) return;
+    const tasks: Array<Promise<void>> = [fetchRoles()];
+    if (canViewPermissions) {
+      tasks.push(fetchPermissions());
+    }
+    void Promise.all(tasks).catch((error) => {
+      if (
+        error instanceof ApiError &&
+        error.status !== 401 &&
+        error.status !== 403
+      ) {
         showErrorAlert(error.message);
       }
     });
-  }, [currentUser, fetchRoles, fetchPermissions, showErrorAlert]);
+  }, [
+    currentUserId,
+    canViewPermissions,
+    fetchRoles,
+    fetchPermissions,
+    showErrorAlert,
+  ]);
 
   const editingRole = useMemo(() => {
     if (!formMode || formMode === "create") return null;
     return roles.find((r) => r.id === formMode) ?? null;
   }, [formMode, roles]);
-
-  const isEditingAdminRole = editingRole?.code === "ADMIN";
 
   const filteredRoles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -107,40 +83,6 @@ export function RolesPanel() {
     }
     return Array.from(groups.entries());
   }, [permissions]);
-
-  const isDirty = useMemo(() => {
-    if (!formMode) return false;
-    if (formMode === "create") {
-      return (
-        roleName.trim().length > 0 ||
-        roleDesc.trim().length > 0 ||
-        draftCodes.length > 0
-      );
-    }
-    if (!editingRole) return false;
-    return (
-      roleName.trim() !== editingRole.name ||
-      roleDesc.trim() !== editingRole.description ||
-      (!isEditingAdminRole &&
-        !areCodeSetsEqual(draftCodes, editingRole.permissionCodes))
-    );
-  }, [formMode, editingRole, isEditingAdminRole, roleName, roleDesc, draftCodes]);
-
-  const openCreateForm = () => {
-    setFormMode("create");
-    setRoleName("");
-    setRoleDesc("");
-    setDraftCodes([]);
-    setNameError(undefined);
-  };
-
-  const openEditForm = (role: RoleDefinition) => {
-    setFormMode(role.id);
-    setRoleName(role.name);
-    setRoleDesc(role.description);
-    setDraftCodes(role.permissionCodes);
-    setNameError(undefined);
-  };
 
   const confirmDuplicateRole = async () => {
     if (!roleToDuplicate) return;
@@ -173,74 +115,6 @@ export function RolesPanel() {
     }
   };
 
-  const requestLeaveForm = () => {
-    if (isDirty) {
-      setLeaveConfirmOpen(true);
-    } else {
-      setFormMode(null);
-    }
-  };
-
-  const handleSaveForm = (event: React.FormEvent) => {
-    event.preventDefault();
-    const cleanName = roleName.trim();
-    if (!cleanName) {
-      setNameError("Vui lòng nhập tên vai trò.");
-      return;
-    }
-
-    const duplicateName = roles.some(
-      (r) =>
-        r.name.toLowerCase() === cleanName.toLowerCase() &&
-        r.id !== editingRole?.id
-    );
-    if (duplicateName) {
-      setNameError("Tên vai trò này đã tồn tại, vui lòng chọn tên khác.");
-      return;
-    }
-
-    setSaveConfirmOpen(true);
-  };
-
-  const confirmSaveRole = async () => {
-    const cleanName = roleName.trim();
-    try {
-      if (editingRole) {
-        await updateRole(editingRole.id, {
-          name: cleanName,
-          description: roleDesc.trim(),
-          ...(isEditingAdminRole ? {} : { permissionCodes: draftCodes }),
-        });
-        showSuccessAlert(`Đã lưu vai trò "${cleanName}".`);
-      } else {
-        let generatedCode = generateRoleCode(cleanName) || `ROLE_${Date.now()}`;
-        let suffix = 2;
-        while (roles.some((r) => r.code === generatedCode)) {
-          generatedCode = `${generateRoleCode(cleanName)}_${suffix}`;
-          suffix += 1;
-        }
-        await createRole({
-          code: generatedCode,
-          name: cleanName,
-          description: roleDesc.trim() || "Vai trò tùy chỉnh",
-          permissionCodes: draftCodes,
-        });
-        showSuccessAlert(
-          `Đã tạo vai trò "${cleanName}" với ${draftCodes.length} quyền.`
-        );
-      }
-      setSaveConfirmOpen(false);
-      setFormMode(null);
-    } catch (error) {
-      setSaveConfirmOpen(false);
-      showErrorAlert(
-        error instanceof ApiError
-          ? error.message
-          : "Không thể lưu vai trò, vui lòng thử lại."
-      );
-    }
-  };
-
   const confirmDeleteRole = async () => {
     if (!roleToDelete || roleToDelete.isSystem) return;
     try {
@@ -255,180 +129,13 @@ export function RolesPanel() {
 
   if (formMode) {
     return (
-      <form onSubmit={handleSaveForm} className="animate-fade-in space-y-6" noValidate>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <button
-              type="button"
-              onClick={requestLeaveForm}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground-muted transition-colors duration-150 hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Vai trò / {editingRole ? "Chỉnh sửa vai trò" : "Thêm vai trò"}</span>
-            </button>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-semibold text-foreground">
-                {editingRole ? editingRole.name : "Thêm vai trò mới"}
-              </h2>
-              {editingRole?.isSystem ? (
-                <StatusBadge label="Mặc định" tone="info" />
-              ) : null}
-              {isDirty ? (
-                <StatusBadge label="Chưa lưu thay đổi" tone="warning" />
-              ) : null}
-            </div>
-            <p className="mt-0.5 text-xs text-foreground-subtle">
-              Đặt tên và chọn những chức năng nhân viên được sử dụng.
-            </p>
-          </div>
-        </div>
-
-        <section className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="text-sm font-semibold text-foreground">
-            Thông tin vai trò
-          </h3>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="unified-role-name"
-                className="block text-xs font-medium text-foreground-muted"
-              >
-                Tên vai trò <span className="text-danger">*</span>
-              </label>
-              <input
-                id="unified-role-name"
-                type="text"
-                autoFocus
-                value={roleName}
-                onChange={(e) => {
-                  setRoleName(e.target.value);
-                  if (nameError) setNameError(undefined);
-                }}
-                placeholder="Ví dụ: Tổ trưởng Chăm sóc khách hàng"
-                className={`mt-1.5 h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none ${
-                  nameError
-                    ? "border-danger focus:border-danger"
-                    : "border-border focus:border-primary"
-                }`}
-              />
-              {nameError ? (
-                <p className="mt-1 text-xs text-danger">{nameError}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <label
-                htmlFor="unified-role-desc"
-                className="block text-xs font-medium text-foreground-muted"
-              >
-                Mô tả
-              </label>
-              <input
-                id="unified-role-desc"
-                type="text"
-                value={roleDesc}
-                onChange={(e) => setRoleDesc(e.target.value)}
-                placeholder="Mô tả ngắn gọn phạm vi công việc của vai trò"
-                className="mt-1.5 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-border bg-surface p-5">
-          <h3 className="mb-4 text-sm font-semibold text-foreground">
-            Quyền được sử dụng
-          </h3>
-          <PermissionSelector
-            groupedPermissions={groupedPermissions}
-            selectedCodes={draftCodes}
-            lockedAll={isEditingAdminRole}
-            onTogglePermission={(code) =>
-              setDraftCodes((prev) =>
-                prev.includes(code)
-                  ? prev.filter((c) => c !== code)
-                  : [...prev, code]
-              )
-            }
-            onToggleModule={(codes, enable) =>
-              setDraftCodes((prev) =>
-                enable
-                  ? Array.from(new Set([...prev, ...codes]))
-                  : prev.filter((c) => !codes.includes(c))
-              )
-            }
-          />
-        </section>
-
-        <div className="sticky bottom-3 z-20 flex flex-col gap-3 rounded-xl border border-border bg-surface/95 px-5 py-3.5 shadow-md backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-foreground-muted">
-            {isDirty
-              ? "Có thay đổi chưa lưu."
-              : "Chưa có thay đổi mới so với cấu hình hiện tại."}
-          </p>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={requestLeaveForm}
-              className="h-9 whitespace-nowrap rounded-lg border border-border bg-surface px-4 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || (!isDirty && formMode !== "create")}
-              className="inline-flex h-9 whitespace-nowrap items-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <Save className="h-3.5 w-3.5 shrink-0" />
-              <span>Lưu vai trò</span>
-            </button>
-          </div>
-        </div>
-
-        <ConfirmDialog
-          open={leaveConfirmOpen}
-          onClose={() => setLeaveConfirmOpen(false)}
-          onConfirm={() => {
-            setLeaveConfirmOpen(false);
-            setFormMode(null);
-          }}
-          title="Rời khỏi biểu mẫu?"
-          description="Bạn có thay đổi chưa lưu. Nếu quay lại danh sách ngay bây giờ, các chỉnh sửa thông tin và quyền vừa chọn sẽ bị hủy."
-          cancelLabel="Tiếp tục chỉnh sửa"
-          confirmLabel="Bỏ thay đổi & quay lại"
-          tone="danger"
-        />
-
-        <ConfirmDialog
-          open={saveConfirmOpen}
-          onClose={() => setSaveConfirmOpen(false)}
-          onConfirm={() => void confirmSaveRole()}
-          title={
-            editingRole ? "Xác nhận lưu vai trò" : "Xác nhận tạo vai trò mới"
-          }
-          description={
-            <>
-              Bạn có chắc chắn muốn {editingRole ? "lưu thay đổi" : "tạo"} vai
-              trò{" "}
-              <strong className="font-semibold text-foreground">
-                {roleName.trim()}
-              </strong>{" "}
-              {!isEditingAdminRole ? (
-                <>
-                  với{" "}
-                  <strong className="font-semibold text-foreground">
-                    {draftCodes.length} quyền
-                  </strong>{" "}
-                  được cấp
-                </>
-              ) : null}
-              ?
-            </>
-          }
-          confirmLabel="Lưu vai trò"
-          tone="primary"
-        />
-      </form>
+      <RoleFormView
+        key={editingRole?.id ?? "create"}
+        editingRole={editingRole}
+        roles={roles}
+        groupedPermissions={groupedPermissions}
+        onClose={() => setFormMode(null)}
+      />
     );
   }
 
@@ -449,7 +156,7 @@ export function RolesPanel() {
         {canManageRoles ? (
           <button
             type="button"
-            onClick={openCreateForm}
+            onClick={() => setFormMode("create")}
             className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-colors duration-150 hover:bg-primary-hover"
           >
             <Plus className="h-4 w-4" />
@@ -537,14 +244,16 @@ export function RolesPanel() {
                         {assignedCount}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                        {role.permissionCodes.length} / {permissions.length}
+                        {permissions.length > 0
+                          ? `${role.permissionCodes.length} / ${permissions.length}`
+                          : `${role.permissionCodes.length}`}
                       </td>
                       {canManageRoles ? (
                         <td className="px-5 py-3">
                           <div className="flex items-center justify-end gap-2">
                             <button
                               type="button"
-                              onClick={() => openEditForm(role)}
+                              onClick={() => setFormMode(role.id)}
                               className="inline-flex h-8 whitespace-nowrap items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-hover"
                             >
                               <Pencil className="h-3.5 w-3.5" />

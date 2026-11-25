@@ -51,6 +51,25 @@ const EMPTY_STAFF_PAGE: PaginatedResponse<StaffUser> = {
   limit: 10,
 };
 
+type SetRbacState = (
+  partial:
+    | Partial<RbacState>
+    | ((state: RbacState) => Partial<RbacState>)
+) => void;
+
+async function runWithFlag<T>(
+  set: SetRbacState,
+  flag: "loadingPermissions" | "loadingRoles" | "loadingStaff" | "isSubmitting",
+  action: () => Promise<T>
+): Promise<T> {
+  set({ [flag]: true });
+  try {
+    return await action();
+  } finally {
+    set({ [flag]: false });
+  }
+}
+
 export const useRbacStore = create<RbacState>((set, get) => ({
   permissions: [],
   roles: [],
@@ -61,174 +80,109 @@ export const useRbacStore = create<RbacState>((set, get) => ({
   loadingStaff: false,
   isSubmitting: false,
 
-  fetchPermissions: async (module) => {
-    set({ loadingPermissions: true });
-    try {
+  fetchPermissions: (module) =>
+    runWithFlag(set, "loadingPermissions", async () => {
       const permissions = await permissionsApi.list(module);
-      set({ permissions, loadingPermissions: false });
-    } catch (error) {
-      set({ loadingPermissions: false });
-      throw error;
-    }
-  },
+      set({ permissions });
+    }),
 
-  fetchRoles: async () => {
-    set({ loadingRoles: true });
-    try {
+  fetchRoles: () =>
+    runWithFlag(set, "loadingRoles", async () => {
       const roles = await rolesApi.list();
-      set({ roles, loadingRoles: false });
-    } catch (error) {
-      set({ loadingRoles: false });
-      throw error;
-    }
-  },
+      set({ roles });
+    }),
 
-  createRole: async (payload) => {
-    set({ isSubmitting: true });
-    try {
+  createRole: (payload) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const created = await rolesApi.create(payload);
-      set((state) => ({
-        roles: [...state.roles, created],
-        isSubmitting: false,
-      }));
+      set((state) => ({ roles: [...state.roles, created] }));
       return created;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  updateRole: async (id, payload) => {
-    set({ isSubmitting: true });
-    try {
+  updateRole: (id, payload) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const updated = await rolesApi.update(id, payload);
       set((state) => ({
         roles: state.roles.map((r) => (r.id === id ? updated : r)),
-        isSubmitting: false,
       }));
       if (useAuthStore.getState().currentUser?.roleId === id) {
         await useAuthStore.getState().refreshMe();
       }
       return updated;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  deleteRole: async (id) => {
-    set({ isSubmitting: true });
-    try {
+  deleteRole: (id) =>
+    runWithFlag(set, "isSubmitting", async () => {
       await rolesApi.remove(id);
-      set((state) => ({
-        roles: state.roles.filter((r) => r.id !== id),
-        isSubmitting: false,
-      }));
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+      set((state) => ({ roles: state.roles.filter((r) => r.id !== id) }));
+    }),
 
-  fetchStaff: async (params) => {
+  fetchStaff: (params) => {
     const mergedQuery: ListStaffParams = {
       ...get().staffQuery,
       ...params,
     };
-    set({ loadingStaff: true, staffQuery: mergedQuery });
-    try {
+    set({ staffQuery: mergedQuery });
+    return runWithFlag(set, "loadingStaff", async () => {
       const staffPage = await staffApi.list(mergedQuery);
-      set({ staffPage, loadingStaff: false });
-    } catch (error) {
-      set({ loadingStaff: false });
-      throw error;
-    }
+      set({ staffPage });
+    });
   },
 
-  createStaff: async (payload) => {
-    set({ isSubmitting: true });
-    try {
+  createStaff: (payload) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const created = await staffApi.create(payload);
       await get().fetchStaff({ page: 1 });
-      set({ isSubmitting: false });
       return created;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  updateStaff: async (id, payload) => {
-    set({ isSubmitting: true });
-    try {
+  updateStaff: (id, payload) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const updated = await staffApi.updateProfile(id, payload);
       set((state) => ({
         staffPage: {
           ...state.staffPage,
           items: state.staffPage.items.map((u) => (u.id === id ? updated : u)),
         },
-        isSubmitting: false,
       }));
       if (useAuthStore.getState().currentUser?.id === id) {
         await useAuthStore.getState().refreshMe();
       }
       return updated;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  assignStaffRole: async (id, roleId) => {
-    set({ isSubmitting: true });
-    try {
+  assignStaffRole: (id, roleId) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const updated = await staffApi.assignRole(id, roleId);
       set((state) => ({
         staffPage: {
           ...state.staffPage,
           items: state.staffPage.items.map((u) => (u.id === id ? updated : u)),
         },
-        isSubmitting: false,
       }));
       if (useAuthStore.getState().currentUser?.id === id) {
         await useAuthStore.getState().refreshMe();
       }
       return updated;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  setStaffStatus: async (id, active) => {
-    set({ isSubmitting: true });
-    try {
+  setStaffStatus: (id, active) =>
+    runWithFlag(set, "isSubmitting", async () => {
       const updated = await staffApi.setStatus(id, active);
       set((state) => ({
         staffPage: {
           ...state.staffPage,
           items: state.staffPage.items.map((u) => (u.id === id ? updated : u)),
         },
-        isSubmitting: false,
       }));
       return updated;
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
-  deleteStaff: async (id) => {
-    set({ isSubmitting: true });
-    try {
+  deleteStaff: (id) =>
+    runWithFlag(set, "isSubmitting", async () => {
       await staffApi.remove(id);
       await get().fetchStaff();
-      set({ isSubmitting: false });
-    } catch (error) {
-      set({ isSubmitting: false });
-      throw error;
-    }
-  },
+    }),
 
   resetRbac: () => {
     set({

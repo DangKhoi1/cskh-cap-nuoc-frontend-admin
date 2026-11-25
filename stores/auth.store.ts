@@ -53,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Clear client state even if session already expired
     } finally {
       set({ currentUser: null, isInitialized: true });
+      useAlertStore.getState().showSuccessAlert("Đăng xuất thành công.");
     }
   },
 

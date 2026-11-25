@@ -16,25 +16,25 @@ export interface UpdateRolePayload {
 
 export const rolesApi = {
   list() {
-    return apiRequest<RoleDefinition[]>("/admin/roles");
+    return apiRequest<RoleDefinition[]>("/admin/get-roles");
   },
 
   create(payload: CreateRolePayload) {
-    return apiRequest<RoleDefinition>("/admin/roles", {
+    return apiRequest<RoleDefinition>("/admin/create-role", {
       method: "POST",
       body: payload,
     });
   },
 
   update(id: string, payload: UpdateRolePayload) {
-    return apiRequest<RoleDefinition>(`/admin/roles/${id}`, {
+    return apiRequest<RoleDefinition>(`/admin/update-role/${id}`, {
       method: "PATCH",
       body: payload,
     });
   },
 
   remove(id: string) {
-    return apiRequest<{ EC: number; EM: string }>(`/admin/roles/${id}`, {
+    return apiRequest<{ EC: number; EM: string }>(`/admin/delete-role/${id}`, {
       method: "DELETE",
     });
   },

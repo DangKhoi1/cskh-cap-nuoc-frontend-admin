@@ -34,40 +34,40 @@ export const staffApi = {
     }
     const qs = searchParams.toString();
     return apiRequest<PaginatedResponse<StaffUser>>(
-      `/admin/staff${qs ? `?${qs}` : ""}`
+      `/admin/get-staff${qs ? `?${qs}` : ""}`
     );
   },
 
   create(payload: CreateStaffPayload) {
-    return apiRequest<StaffUser>("/admin/staff", {
+    return apiRequest<StaffUser>("/admin/create-staff", {
       method: "POST",
       body: payload,
     });
   },
 
   updateProfile(id: string, payload: UpdateStaffPayload) {
-    return apiRequest<StaffUser>(`/admin/staff/${id}`, {
+    return apiRequest<StaffUser>(`/admin/update-staff/${id}`, {
       method: "PATCH",
       body: payload,
     });
   },
 
   assignRole(id: string, roleId: string) {
-    return apiRequest<StaffUser>(`/admin/staff/${id}/role`, {
+    return apiRequest<StaffUser>(`/admin/assign-staff-role/${id}`, {
       method: "PATCH",
       body: { roleId },
     });
   },
 
   setStatus(id: string, active: boolean) {
-    return apiRequest<StaffUser>(`/admin/staff/${id}/status`, {
+    return apiRequest<StaffUser>(`/admin/update-staff-status/${id}`, {
       method: "PATCH",
       body: { active },
     });
   },
 
   remove(id: string) {
-    return apiRequest<{ EC: number; EM: string }>(`/admin/staff/${id}`, {
+    return apiRequest<{ EC: number; EM: string }>(`/admin/delete-staff/${id}`, {
       method: "DELETE",
     });
   },

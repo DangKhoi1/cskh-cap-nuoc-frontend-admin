@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  AlertCircle,
-  CheckCircle2,
   Droplets,
   KeyRound,
   Loader2,
@@ -19,7 +17,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useAlertStore } from "@/stores/alert.store";
+import { AlertToastContainer } from "@/components/layout/AlertToastContainer";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRbacStore } from "@/stores/rbac.store";
 
@@ -83,8 +81,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const logout = useAuthStore((s) => s.logout);
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const resetRbac = useRbacStore((s) => s.resetRbac);
-  const alerts = useAlertStore((s) => s.alerts);
-  const dismissAlert = useAlertStore((s) => s.dismissAlert);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -216,7 +212,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   };
 
   if (pathname === "/login") {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <AlertToastContainer />
+      </>
+    );
   }
 
   return (
@@ -372,42 +373,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {alerts.length > 0 ? (
-        <div
-          aria-live="polite"
-          className="pointer-events-none fixed right-4 top-16 z-50 flex w-full max-w-sm flex-col gap-2 sm:right-6"
-        >
-          {alerts.map((alert) => (
-            <div
-              key={alert.id}
-              role="status"
-              className={`animate-panel-in pointer-events-auto flex items-center justify-between gap-3 rounded-xl border bg-surface px-4 py-3 shadow-md ${alert.type === "error"
-                ? "border-danger/35"
-                : "border-success/30"
-                }`}
-            >
-              <div className="flex items-center gap-2.5">
-                {alert.type === "error" ? (
-                  <AlertCircle className="h-4 w-4 shrink-0 text-danger" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                )}
-                <p className="text-sm font-medium text-foreground">
-                  {alert.message}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => dismissAlert(alert.id)}
-                aria-label="Đóng thông báo"
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-foreground-muted hover:bg-surface-hover hover:text-foreground"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <AlertToastContainer />
     </div>
   );
 }

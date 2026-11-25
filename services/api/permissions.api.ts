@@ -7,6 +7,6 @@ export const permissionsApi = {
       module && module.trim().length > 0
         ? `?module=${encodeURIComponent(module.trim())}`
         : "";
-    return apiRequest<PermissionItem[]>(`/admin/permissions${query}`);
+    return apiRequest<PermissionItem[]>(`/admin/get-permissions${query}`);
   },
 };

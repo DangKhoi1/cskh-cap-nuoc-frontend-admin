@@ -17,6 +17,10 @@ const API_BASE_URL = (
 let unauthorizedHandler: (() => void) | null = null;
 let forbiddenHandler: ((message: string) => void) | null = null;
 
+/**
+ * Registers global 401/403 callbacks from `stores/auth.store.ts`
+ * so `apiRequest` does not import the auth store directly (avoids circular imports).
+ */
 export function registerApiAuthHandlers(handlers: {
   onUnauthorized: () => void;
   onForbidden: (message: string) => void;
@@ -76,6 +80,15 @@ export async function apiRequest<T>(
     }
 
     throw new ApiError(response.status, rawMessage, errorObj.errors);
+  }
+
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "EC" in payload &&
+    "data" in payload
+  ) {
+    return (payload as { data: T }).data;
   }
 
   return payload as T;
