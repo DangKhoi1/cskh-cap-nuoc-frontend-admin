@@ -156,11 +156,10 @@ export function UsersPanel() {
                   setStatusFilter(tab.value);
                   setPage(1);
                 }}
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
-                  active
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${active
                     ? "bg-primary text-primary-foreground"
                     : "border border-border bg-surface text-foreground-muted hover:bg-surface-hover hover:text-foreground"
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -269,49 +268,49 @@ export function UsersPanel() {
                   const rowActions = [
                     ...(canUpdate
                       ? [
-                          {
-                            label: "Sửa thông tin nhân viên",
-                            icon: <Pencil className="h-3.5 w-3.5" />,
-                            onClick: () => {
-                              setEditingUser(user);
-                              setDrawerOpen(true);
-                            },
+                        {
+                          label: "Sửa thông tin nhân viên",
+                          icon: <Pencil className="h-3.5 w-3.5" />,
+                          onClick: () => {
+                            setEditingUser(user);
+                            setDrawerOpen(true);
                           },
-                        ]
+                        },
+                      ]
                       : []),
                     ...(canAssignRole
                       ? [
-                          {
-                            label: "Đổi vai trò",
-                            icon: <UserCog className="h-3.5 w-3.5" />,
-                            onClick: () => setRoleModalUser(user),
-                          },
-                        ]
+                        {
+                          label: "Đổi vai trò",
+                          icon: <UserCog className="h-3.5 w-3.5" />,
+                          onClick: () => setRoleModalUser(user),
+                        },
+                      ]
                       : []),
                     ...(canToggleThisUser
                       ? [
-                          {
-                            label: user.active
-                              ? "Tạm khóa tài khoản"
-                              : "Kích hoạt lại tài khoản",
-                            icon: user.active ? (
-                              <Lock className="h-3.5 w-3.5" />
-                            ) : (
-                              <Unlock className="h-3.5 w-3.5" />
-                            ),
-                            onClick: () => setUserToToggle(user),
-                          },
-                        ]
+                        {
+                          label: user.active
+                            ? "Tạm khóa tài khoản"
+                            : "Kích hoạt lại tài khoản",
+                          icon: user.active ? (
+                            <Lock className="h-3.5 w-3.5" />
+                          ) : (
+                            <Unlock className="h-3.5 w-3.5" />
+                          ),
+                          onClick: () => setUserToToggle(user),
+                        },
+                      ]
                       : []),
                     ...(isSystemAdmin && !isSelf
                       ? [
-                          {
-                            label: "Xóa tài khoản",
-                            icon: <Trash2 className="h-3.5 w-3.5" />,
-                            tone: "danger" as const,
-                            onClick: () => setUserToDelete(user),
-                          },
-                        ]
+                        {
+                          label: "Xóa tài khoản",
+                          icon: <Trash2 className="h-3.5 w-3.5" />,
+                          tone: "danger" as const,
+                          onClick: () => setUserToDelete(user),
+                        },
+                      ]
                       : []),
                   ];
 
@@ -394,7 +393,7 @@ export function UsersPanel() {
       ) : null}
 
       <StaffFormSlideOver
-        key={drawerOpen ? (editingUser?.id ?? "create") : "closed"}
+        key={drawerOpen ? `staff-${editingUser?.id ?? "create"}` : "staff-closed"}
         open={drawerOpen}
         editingUser={editingUser}
         roles={roles}
@@ -402,7 +401,7 @@ export function UsersPanel() {
       />
 
       <AssignRoleSlideOver
-        key={roleModalUser?.id ?? "closed"}
+        key={roleModalUser ? `role-${roleModalUser.id}` : "role-closed"}
         user={roleModalUser}
         roles={roles}
         onClose={() => setRoleModalUser(null)}

@@ -18,16 +18,16 @@ Cổng quản trị nội bộ cho hệ thống Chăm sóc khách hàng Cấp n�
 ## Operating Context
 
 - Người dùng làm việc chủ yếu trên màn hình desktop (`1366×768` trở lên) tại quầy giao dịch hoặc văn phòng, cần hỗ trợ responsive trên tablet/mobile khi cần.
-- Luồng phân quyền hoạt động hoàn toàn động theo danh sách `permissionCodes` của vai trò được gán cho người dùng đang đăng nhập (`AdminStoreContext`), không viết cứng theo tên vai trò.
-- Tài khoản nhân viên bị khóa (`active: false`) bị vô hiệu hóa trong bộ chọn người dùng và tự động bị thu hồi toàn bộ quyền truy cập.
+- Luồng phân quyền hoạt động hoàn toàn động theo danh sách `permissionCodes` từ API `GET /admin/me` (`useAuthStore`), kết hợp `isSystemAdmin()` cho các thao tác đặc quyền `ADMIN`.
+- Tài khoản nhân viên bị khóa (`active: false`) bị thu hồi toàn bộ phiên trong DB và không thể đăng nhập.
 
 ## Capabilities and Constraints
 
-- **Quản lý liên kết khách hàng (`/customers`):** Tìm kiếm, xem chi tiết, tạo liên kết mới qua bước đối chiếu `(customerCode, phoneNumber)` với danh bạ V2 mô phỏng, cập nhật thông tin và hủy liên kết. Kiểm soát bởi `customers.view`, `customers.create`, `customers.update`, `customers.delete`.
-- **Quản lý tài khoản nhân viên (`/users`):** Lọc theo trạng thái/vai trò, tìm kiếm, thêm mới, chỉnh sửa vai trò và tạm khóa/kích hoạt lại tài khoản. Kiểm soát bởi `users.view`, `users.create`, `users.update`, `users.lock`.
-- **Quản lý vai trò (`/roles`):** Tạo mới, nhân bản, chỉnh sửa thông tin và tích chọn quyền theo từng phân hệ trên một biểu mẫu thống nhất, cảnh báo thay đổi chưa lưu và xóa vai trò tùy chỉnh. Kiểm soát bởi `roles.view`, `roles.create`, `roles.update`, `roles.delete`.
-- **Danh mục quyền (`/permissions`):** Bảng tra cứu chỉ đọc các quyền kỹ thuật do đội phát triển định nghĩa sẵn. Kiểm soát bởi `permissions.view`.
-- **Trạng thái dữ liệu hiện tại:** Dùng dữ liệu mô phỏng (mock data) trong client store để phục vụ demo và nghiệm thu luồng nghiệp vụ trước khi tích hợp API backend.
+- **Quản lý liên kết khách hàng (`/customers`):** Tìm kiếm, xem chi tiết, tạo liên kết mới qua bước đối chiếu `(customerCode, phoneNumber)` với danh bạ V2 mô phỏng, cập nhật thông tin và hủy liên kết.
+- **Quản lý tài khoản nhân viên (`/users`):** Lọc theo trạng thái/vai trò, tìm kiếm, thêm mới, chỉnh sửa thông tin, đổi vai trò, tạm khóa/kích hoạt lại và xóa tài khoản (kết nối API `/admin/*` qua `useRbacStore`).
+- **Quản lý vai trò (`/roles`):** Tạo mới, nhân bản, chỉnh sửa thông tin và tích chọn quyền theo từng phân hệ trên một biểu mẫu thống nhất (`RoleFormView`), cảnh báo thay đổi chưa lưu và xóa vai trò tùy chỉnh (kết nối API `/admin/*` qua `useRbacStore`).
+- **Danh mục quyền (`/permissions`):** Bảng tra cứu chỉ đọc các quyền kỹ thuật từ `GET /admin/get-permissions`.
+- **Trạng thái dữ liệu hiện tại:** Xác thực (`/auth/staff/*`), danh mục quyền, vai trò và nhân viên đã kết nối trực tiếp Backend API; riêng màn hình `/customers` hiện vẫn dùng `MOCK_CUSTOMERS` chờ API `/admin/customers`.
 
 ## Brand Commitments
 
