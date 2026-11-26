@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Droplets,
   KeyRound,
   Loader2,
   Lock,
@@ -232,9 +231,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       ) : null}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
         <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Droplets className="h-4 w-4" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Logo Cấp nước Cà Mau"
+            className="h-8 w-8 shrink-0 rounded-full object-contain"
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">
               Chăm sóc khách hàng
@@ -262,9 +263,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <aside className="relative z-10 flex w-72 flex-col border-r border-border bg-surface">
             <div className="flex h-14 items-center justify-between border-b border-border px-4">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Droplets className="h-4 w-4" />
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="Logo Cấp nước Cà Mau"
+                  className="h-8 w-8 shrink-0 rounded-full object-contain"
+                />
                 <span className="text-sm font-semibold text-foreground">
                   Chăm sóc khách hàng
                 </span>

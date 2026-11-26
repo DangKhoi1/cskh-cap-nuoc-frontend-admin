@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
-  Droplets,
   Eye,
   EyeOff,
   Loader2,
@@ -72,9 +71,11 @@ export default function AdminLoginPage() {
       <main className="mx-auto w-full max-w-md py-6">
         <div className="animate-panel-in rounded-xl border border-border bg-surface p-6 sm:p-8">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Droplets className="h-6 w-6" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Logo Cấp nước Cà Mau"
+              className="h-14 w-14 rounded-full object-contain"
+            />
             <h1 className="mt-3 text-lg font-semibold text-foreground">
               Chăm sóc khách hàng Cấp nước
             </h1>

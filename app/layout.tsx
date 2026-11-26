@@ -16,9 +16,12 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chăm sóc khách hàng Cấp Nước — Cổng Quản Trị",
+  title: "Chăm sóc khách hàng Cấp Nước - Cổng Quản Trị",
   description:
-    "Hệ thống quản trị chăm sóc khách hàng, tra cứu hóa đơn nước và đối soát thanh toán QR.",
+    "Hệ thống quản trị chăm sóc khách hàng, tra cứu hóa đơn nước và đối soát thanh toán.",
+  icons: {
+    icon: '/icon.png'
+  }
 };
 
 export default function RootLayout({
