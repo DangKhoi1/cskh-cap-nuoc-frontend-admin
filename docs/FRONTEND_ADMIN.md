@@ -1,6 +1,6 @@
 # Tài liệu Frontend Quản trị (`cskh-cap-nuoc-frontend-admin`)
 
-## 0. Mô tả luồng bằng lời
+## 0. Tổng quan luồng hoạt động
 
 Toàn bộ yêu cầu API từ trình duyệt trên cổng Quản trị (`localhost:3000`) đều đi qua đường dẫn `/api/backend/...` và được Next.js rewrite sang backend (`localhost:8080`) để cùng origin, nhờ đó cookie phiên nhân viên `cskh-staff.session_token` tự động đi kèm mà không gặp lỗi CORS. Khi người dùng mở ứng dụng, `AdminShell` gọi `initSession()` (`GET /admin/me`) để lấy thông tin tài khoản và danh sách quyền `permissionCodes`. Nếu chưa đăng nhập (`401`), hệ thống tự xóa state và đưa về `/login`; nếu thao tác bị từ chối quyền (`403`), hệ thống hiện thông báo lỗi và gọi lại `/admin/me` để đồng bộ quyền mới nhất. Dựa trên danh sách quyền, sidebar và các nút thao tác sẽ tự ẩn hoặc hiện tương ứng. Mọi phản hồi dạng `{ EC, EM, data }` từ backend được `apiRequest` tự động mở bọc lấy `data` để các Zustand store (`useRbacStore`, `useAuthStore`) sử dụng trực tiếp; khi bấm đăng xuất, Frontend gọi `/auth/staff/logout`, dọn sạch state, quay về `/login` và hiển thị thông báo tiếng Việt `"Đăng xuất thành công."`.
 
